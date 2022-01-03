@@ -1,0 +1,186 @@
+#%RAML 1.0
+title: New API
+mediaType:
+  - application/xml
+protocols:
+  - HTTPS
+baseUri: /api/tickets
+version: "2.0"
+/:
+  get:
+    displayName: Get tickets
+    responses:
+      "200":
+        body:
+          type: object
+      "400":
+        body:
+          type: object
+      "404":
+        body:
+          type: object
+    securedBy: []
+    queryParameters:
+      orderBy?:
+        items:
+          example: Example
+          type: string
+      id?:
+        example: 1
+        type: number
+        format: int
+      name?:
+        example: Example
+        type: string
+      creationDate?:
+        example: Example
+        type: string
+      price?:
+        example: 1
+        type: number
+        format: int
+      comment?:
+        example: Example
+        type: string
+      type?:
+        example: Example
+        type: string
+      event?:
+        example: Example
+        type: string
+      pageNumber?:
+        example: 1
+        type: number
+        format: int
+      pageSize?:
+        example: 1
+        type: number
+        format: int
+  post:
+    displayName: Add ticket
+    responses:
+      "200":
+        body:
+          type: object
+      "400":
+        body:
+          type: object
+    securedBy: []
+    body:
+      type: ticket
+/avgprice:
+  get:
+    displayName: Average price
+    responses:
+      "200":
+        body:
+          type: object
+    securedBy: []
+/withcommentslike:
+  get:
+    displayName: Comments like
+    queryParameters:
+      string:
+        example: Example
+        type: string
+    responses:
+      "200":
+        body:
+          type: object
+    securedBy: []
+/withcommentslower:
+  get:
+    displayName: Comments lower
+    queryParameters:
+      string:
+        example: Example
+        type: string
+    responses:
+      "200":
+        body:
+          type: object
+    securedBy: []
+/{id}:
+  get:
+    displayName: Get single ticket
+    responses:
+      "200":
+        body:
+          type: object
+      "404": {}
+      "400": {}
+    securedBy: []
+  put:
+    displayName: Modify ticket
+    responses:
+      "200":
+        body:
+          type: object
+      "404": {}
+      "400": {}
+    securedBy: []
+    body:
+      type: ticket
+  delete:
+    displayName: Delete ticket
+    responses:
+      "200": {}
+      "404": {}
+    securedBy: []
+  uriParameters:
+    id:
+      example: 1
+      type: number
+      format: int
+types:
+  event:
+    properties:
+      id?:
+        example: 1
+        type: number
+        format: int
+      eventType?:
+        example: Example
+        type: string
+      name?:
+        example: Example
+        type: string
+      date?:
+        example: Example
+        type: string
+  ticket:
+    properties:
+      id?:
+        example: 1
+        type: number
+        format: int
+      name?:
+        example: Example
+        type: string
+      price?:
+        example: 1
+        type: number
+        format: int
+      comment?:
+        example: Example
+        type: string
+      type?:
+        example: Example
+        type: string
+      event?:
+        type: event
+      creationDate?:
+        example: Example
+        type: string
+      coordinates?:
+        type: coordinates
+  coordinates:
+    properties:
+      x:
+        example: 1
+        type: number
+        format: float
+      y:
+        example: 1
+        type: number
+        format: float

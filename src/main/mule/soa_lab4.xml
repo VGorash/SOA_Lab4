@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <http:listener-config name="soa_lab4-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="15443" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store insecure="true" />
+				<tls:key-store type="jks" path="muleKeyStore.jks" alias="mule" keyPassword="secret" password="secret" />
+			</tls:context>
+		</http:listener-connection>
+    </http:listener-config>
+    <apikit:config name="soa_lab4-config" api="soa_lab4.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="785aaa7b-58c4-4ce4-b9fe-67593c30e8bc" >
+		<wsc:connection wsdlLocation="http://localhost:25080//SoapTicketServiceImplService?wsdl" service="SoapTicketServiceImplService" port="SoapTicketServiceImplPort" address="http://localhost:25080/SoapTicketServiceImplService" >
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
+		</wsc:connection>
+	</wsc:config>
+	<flow name="soa_lab4-main">
+        <http:listener config-ref="soa_lab4-httpListenerConfig" path="/api/tickets/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {} ++{"Access-Control-Allow-Origin":"*",
+	"Access-Control-Allow-Headers":"origin, content-type, accept, authorization",
+	"Access-Control-Allow-Credentials":"true",
+	"Access-Control-Allow-Methods":"GET, POST, PUT, DELETE, OPTIONS, HEAD"
+}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="soa_lab4-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="soa_lab4-console">
+        <http:listener config-ref="soa_lab4-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="soa_lab4-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\(id):application\xml:soa_lab4-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="put:\(id):soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="ceaaf88a-5c58-4876-8307-1f983a21c56f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#modifyTicket: payload mapObject (v, k, i) -> {arg0: vars.id, arg1: v}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="3629a21e-ca6c-41bb-b44b-b1d05b4f046a" config-ref="Web_Service_Consumer_Config" operation="modifyTicket"/>
+		<ee:transform doc:name="Transform Message" doc:id="8e2cf1f5-cdcf-4318-b6b7-0ce4cd1c1a17" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticket:
+payload.body.ns0#modifyTicketResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="edd56f18-fc58-414b-8cb5-93db3e18b36e" >
+				<set-variable value="400" doc:name="httpStatus" doc:id="d8a2cc25-0e0d-4103-b346-1bc114949338" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="123036e7-5970-4cae-b691-4d0d7fe94b6f" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.detailedDescription]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+    <flow name="delete:\(id):soa_lab4-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="delete:\(id):soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="69b744a0-cd8b-4cf9-a3dc-e41a70e783cc" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#deleteTicket: {
+		arg0: vars.id
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="20975fe1-5f29-49bf-9db0-b9c93771ff45" config-ref="Web_Service_Consumer_Config" operation="deleteTicket"/>
+		<ee:transform doc:name="Transform Message" doc:id="05291e86-e6e1-47b8-aaf6-091a37bb0944" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+status: "Success"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="86dd0a0a-7742-4634-af7f-ed36651a8108" >
+				<set-variable value="404" doc:name="Set Variable" doc:id="17157571-f62b-434c-bc14-2bb7019cc675" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="ec97ec3a-9aff-4da4-a1ba-732a0796d179" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.detailedDescription]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+    <flow name="get:\:soa_lab4-config">
+        <logger level="INFO" message="get:\:soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="4aadf00a-49a0-4079-886a-daab5a4cd726" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml skipNullOn="everywhere"
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#getTickets: {
+		arg0: {
+			pageNumber: attributes.queryParams.pageNumber,
+			pageSize: attributes.queryParams.pageSize,
+			id: attributes.queryParams.id,
+			name: attributes.queryParams.name,
+			creationDate: attributes.queryParams.creationDate,
+			price: attributes.queryParams.price,
+			comment: attributes.queryParams.comment,
+			"type": attributes.queryParams."type",
+			event: attributes.queryParams.event,
+			orderBy: attributes.queryParams.orderBy
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="87d9d00b-98fe-4ad5-aecb-7f80667ae44e" config-ref="Web_Service_Consumer_Config" operation="getTickets"/>
+		<ee:transform doc:name="Transform Message" doc:id="dfe770d1-7e4e-4ea0-bef5-0d35a7c6be2d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticketList:
+payload.body.ns0#getTicketsResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d15f96fc-efe5-4672-8a78-c39cd26f4a36" type="WSC:SOAP_FAULT">
+				<set-variable value="400" doc:name="httpStatus" doc:id="a7944ab6-0cf0-48d9-9e51-33b097ead69e" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="b4432aa6-d1dd-46cc-b773-74089f157280" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.detailedDescription]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+    <flow name="get:\avgprice:soa_lab4-config">
+        <logger level="INFO" message="get:\avgprice:soa_lab4-config" />
+		<wsc:consume operation="getAveragePrice" doc:name="Consume" doc:id="36440cd6-1241-41af-85f8-f35a96d6436f" config-ref="Web_Service_Consumer_Config"/>
+		<ee:transform doc:name="Transform Message" doc:id="e009f44b-9b0f-4024-b0ae-3678091c6679" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+averagePrice:
+payload.body.ns0#getAveragePriceResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="get:\withcommentslike:soa_lab4-config">
+        <logger level="INFO" message="get:\withcommentslike:soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="1def53bb-6766-487b-9586-e5d96c5717ee" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#getTicketsWithCommentsLike: {
+		arg0: attributes.queryParams.string
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="e44313ad-95c1-44ba-a095-366c471d6369" config-ref="Web_Service_Consumer_Config" operation="getTicketsWithCommentsLike"/>
+		<ee:transform doc:name="Transform Message" doc:id="09c4a616-e2ed-4416-b108-4ecfbf0a60e7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticketList:
+payload.body.ns0#getTicketsWithCommentsLikeResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="get:\withcommentslower:soa_lab4-config">
+        <logger level="INFO" message="get:\withcommentslower:soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="6f9eadf7-97bd-472a-ae74-9f76cd5a1155" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#getTicketsWithCommentsLower: {
+		arg0: attributes.queryParams.string
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="d4fd44dc-bbb8-44d2-8d8c-78284064ab10" config-ref="Web_Service_Consumer_Config" operation="getTicketsWithCommentsLower"/>
+		<ee:transform doc:name="Transform Message" doc:id="5dbbad89-bd0e-4d1b-980b-41560183f285" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticketList:
+payload.body.ns0#getTicketsWithCommentsLowerResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="get:\(id):soa_lab4-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="id">attributes.uriParams.'id'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="get:\(id):soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="4fbcf816-dc5f-48d8-b654-3ef9a0fcf45b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#getTicket: {
+		arg0: vars.id
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="638d1ee0-f1b6-43d7-a8d5-190bd211c532" config-ref="Web_Service_Consumer_Config" operation="getTicket">
+		</wsc:consume>
+		<ee:transform doc:name="Transform Message" doc:id="6f83a773-f5c6-4d69-8ea6-321b109c1966" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticket:
+payload.body.ns0#getTicketResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d22b06b0-cd0f-4b9e-8223-669ebf8cc764" type="WSC:SOAP_FAULT">
+				<set-variable value="404" doc:name="httpStatus" doc:id="fa6cfaac-3cd2-4a2a-a381-47e1fadab324" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="d82777dd-05c8-4944-94b5-01903e734a0d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.detailedDescription]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+    <flow name="post:\:application\xml:soa_lab4-config">
+        <logger level="INFO" message="post:\:application\xml:soa_lab4-config" />
+		<ee:transform doc:name="Transform Message" doc:id="44e7ee32-6bb2-4bea-b489-db90ff480cc7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+{
+	ns0#addTicket: payload mapObject (v, k, i) -> {arg0: v}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<wsc:consume doc:name="Consume" doc:id="812c9cac-2443-4052-bed4-b15fc7bbe03e" config-ref="Web_Service_Consumer_Config" operation="addTicket"/>
+		<ee:transform doc:name="Transform Message" doc:id="f5bd5573-35da-42d7-886e-43a73043126a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns ns0 http://endpoint.soap.vgorash.com/
+---
+ticket:
+payload.body.ns0#addTicketResponse.return]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e1866a32-ab76-44b3-a135-855001204f7a" >
+				<set-variable value="400" doc:name="httpStatus" doc:id="773bab51-dff6-45ad-95f1-aa11690b8570" variableName="httpStatus"/>
+				<ee:transform doc:name="Transform Message" doc:id="3636b0ff-f8de-4895-b377-51083e283f9d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.detailedDescription]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+</mule>
